@@ -1,68 +1,86 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from app.database import TESTS
-from app.models.test_model import Test, TestCreate, TestUpdate
+from app.db.session import get_session
+from app.models.test import Test
+from app.schemas.test_schema import TestCreate, TestUpdate, TestResponse
+from app.core.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/tests", tags=["Tests"])
 
-# CREATE
-@router.post("/", response_model=Test, status_code=status.HTTP_201_CREATED)
-def create_test(test_data: TestCreate):
-    new_id = max([t.id for t in TESTS], default=0) + 1
-    new_test = Test(id=new_id, **test_data.dict())
-    TESTS.append(new_test)
+# ---------- CREATE ----------
+@router.post("/", response_model=TestResponse, status_code=status.HTTP_201_CREATED)
+async def create_test(
+    test_data: TestCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    new_test = Test(**test_data.dict(), owner_id=current_user.id)
+    session.add(new_test)
+    await session.commit()
+    await session.refresh(new_test)
     return new_test
 
-# READ ALL
-@router.get("/", response_model=List[Test])
-def get_all_tests():
-    return TESTS
+# ---------- READ (list) ----------
+@router.get("/", response_model=List[TestResponse])
+async def list_tests(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    res = await session.execute(select(Test).where(Test.owner_id == current_user.id))
+    return res.scalars().all()
 
-# READ ONE
-@router.get("/{test_id}", response_model=Test)
-def get_test(test_id: int):
-    for test in TESTS:
-        if test.id == test_id:
-            return test
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
-
-# UPDATE
-@router.put("/{test_id}", response_model=Test)
-def update_test(test_id: int, updated_data: TestUpdate):
-    for i, test in enumerate(TESTS):
-        if test.id == test_id:
-            current_data = test.model_dump()
-            update_payload = updated_data.model_dump(exclude_unset=True)
-
-            if "completed" in update_payload and "students" not in update_payload:
-                # validate completed <= students using existing total
-                if update_payload["completed"] > current_data["students"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="completed cannot exceed students",
-                    )
-
-            if "students" in update_payload and "completed" not in update_payload:
-                if current_data["completed"] > update_payload["students"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="completed cannot exceed students",
-                    )
-
-            merged = {**current_data, **update_payload, "id": test_id}
-            TESTS[i] = Test(**merged)
-            return TESTS[i]
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Test not found"
+# ---------- READ (single) ----------
+@router.get("/{test_id}", response_model=TestResponse)
+async def get_test(
+    test_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    res = await session.execute(
+        select(Test).where(Test.id == test_id, Test.owner_id == current_user.id)
     )
+    test = res.scalar_one_or_none()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return test
 
-# DELETE
+# ---------- UPDATE ----------
+@router.put("/{test_id}", response_model=TestResponse)
+async def update_test(
+    test_id: int,
+    payload: TestUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    res = await session.execute(
+        select(Test).where(Test.id == test_id, Test.owner_id == current_user.id)
+    )
+    test = res.scalar_one_or_none()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(test, field, value)
+    await session.commit()
+    await session.refresh(test)
+    return test
+
+# ---------- DELETE ----------
 @router.delete("/{test_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_test(test_id: int):
-    for test in TESTS:
-        if test.id == test_id:
-            TESTS.remove(test)
-            return
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Test not found")
+async def delete_test(
+    test_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    res = await session.execute(
+        select(Test).where(Test.id == test_id, Test.owner_id == current_user.id)
+    )
+    test = res.scalar_one_or_none()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    await session.delete(test)
+    await session.commit()
