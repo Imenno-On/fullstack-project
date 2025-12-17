@@ -2,11 +2,16 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
+import sys
+import os
 from alembic import context
+
+sys.path.append(os.path.join(sys.path[0], '..'))
+
 from app.db.base import Base
-from app.models import user, test
-target_metadata = Base.metadata
+from app.models import test
+from app.models.user import User
+from app.models.generated_form import GeneratedForm
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -1,18 +1,29 @@
+from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 
-# ----- request / response -----
-class UserCreate(BaseModel):
+
+class UserBase(BaseModel):
     email: EmailStr
+
+
+class UserCreate(UserBase):
     password: str
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
 
-class UserResponse(BaseModel):
-    email: EmailStr
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    is_superuser: bool
+    created_at: datetime
 
-# ----- JWT -----
+    class Config:
+        from_attributes = True
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+    class Config:
+        from_attributes = True

@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 
 from app.routes import auth, health, tests, users
@@ -6,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel, OAuthFlowPassword
 from starlette.middleware.base import BaseHTTPMiddleware
-
+from fastapi.security import OAuth2PasswordBearer
 
 
 app = FastAPI(
