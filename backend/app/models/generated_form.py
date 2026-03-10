@@ -10,7 +10,7 @@ class GeneratedForm(Base):
     title = Column(String(255), nullable=False)
     published_url = Column(String(500), nullable=False)  # URL для прохождения теста
     edit_url = Column(String(500), nullable=False)  # URL для редактирования
-    question_count = Column(Integer, default=0)
+    question_count = Column(Integer, default=0, nullable=False)
     original_text = Column(Text, nullable=True)  # Исходный текст, использованный для генерации
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

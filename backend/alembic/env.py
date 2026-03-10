@@ -9,7 +9,6 @@ from alembic import context
 sys.path.append(os.path.join(sys.path[0], '..'))
 
 from app.db.base import Base
-from app.models import test
 from app.models.user import User
 from app.models.generated_form import GeneratedForm
 

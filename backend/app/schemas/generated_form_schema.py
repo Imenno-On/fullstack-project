@@ -33,10 +33,11 @@ class GenerateTestRequest(BaseModel):
         return v.strip()
 
 
-class GeneratedFormResponse(BaseModel):
-    published_url: HttpUrl
-    edit_url: HttpUrl
-    question_count: int
+class GeneratedFormRead(BaseModel):
+    id: int
+    published_url: str  # Используем str вместо HttpUrl для совместимости
+    edit_url: str  # Используем str вместо HttpUrl для совместимости
+    question_count: Optional[int] = 0  # Может быть None в старых записях
     title: str
     created_at: datetime
 

@@ -40,7 +40,7 @@ async def generate_questions_from_text(text: str) -> list[dict]:
     """
 
     response = await client.chat.completions.create(
-        model="deepseek/deepseek-r1-0528:free",
+        model="z-ai/glm-4.5-air:free",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
         max_tokens=1500,
